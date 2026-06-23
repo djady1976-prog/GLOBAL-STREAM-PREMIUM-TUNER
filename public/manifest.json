@@ -1,0 +1,24 @@
+{
+  "name": "Global Stream Radio",
+  "short_name": "StreamRadio",
+  "description": "Premium online radio streaming live stations from around the world. Features a high-fidelity visualizer, multi-band graphic equalizer, and multi-language support.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a100c",
+  "theme_color": "#12c46a",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

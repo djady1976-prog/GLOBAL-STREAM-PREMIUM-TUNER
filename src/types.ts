@@ -1,0 +1,354 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+export type Language = 'ro' | 'it' | 'en';
+
+export type ThemeId = 'matrix' | 'cyberpunk' | 'gold' | 'indigo' | 'crimson';
+
+export interface ThemeConfig {
+  id: ThemeId;
+  name: { ro: string; it: string; en: string };
+  bg: string;          // Tailwind bg class
+  surface: string;     // Panel bg class
+  border: string;      // Border hex/class
+  text: string;        // Main text color class
+  accent: string;      // Accent neon text class
+  accentBg: string;    // Accent glow color class
+  glowColor: string;   // CSS glow color (hex/rgb)
+  accentHex: string;   // Accent color hex
+  panelBorder: string; // Inner borders
+}
+
+export interface RadioStation {
+  id: string;
+  name: string;
+  url: string;
+  country: string;
+  language: string;
+  tags: string[];
+  bitrate: number;
+  format: string;
+  votes?: number;
+  homepage?: string;
+}
+
+export interface UserSettings {
+  language: Language;
+  theme: ThemeId;
+  volume: number;
+  favorites: string[]; // station URLs or IDs
+  eqWeights: number[]; // 7 elements, -12 to +12 dB
+  activeEqPreset: string;
+}
+
+export const EQ_FREQUENCIES = [60, 150, 400, 1000, 2500, 6000, 15000]; // 7 bands
+
+export interface EqPreset {
+  id: string;
+  name: { ro: string; it: string; en: string };
+  gains: number[]; // 7 gains
+}
+
+export const EQ_PRESETS: EqPreset[] = [
+  { id: 'flat', name: { ro: 'Egal', it: 'Piatto', en: 'Flat' }, gains: [0, 0, 0, 0, 0, 0, 0] },
+  { id: 'bass', name: { ro: 'Super Bass', it: 'Super Basso', en: 'Super Bass' }, gains: [8, 6, 3, 0, -1, -2, -3] },
+  { id: 'treble', name: { ro: 'Inalte Puternice', it: 'Acuti Alti', en: 'Deep Treble' }, gains: [-4, -2, 0, 2, 5, 8, 9] },
+  { id: 'dance', name: { ro: 'Dance / Club', it: 'Ballare / Club', en: 'Dance / Club' }, gains: [5, 4, 1, 3, 4, 3, 1] },
+  { id: 'rock', name: { ro: 'Rock Clasic', it: 'Classico Rock', en: 'Classic Rock' }, gains: [4, 2, -2, -1, 1, 4, 6] },
+  { id: 'classical', name: { ro: 'Simfonic', it: 'Classica', en: 'Symphony' }, gains: [3, 2, 1, 1, -1, 2, 4] },
+  { id: 'vocal', name: { ro: 'Voce Clara', it: 'Voce Chiara', en: 'Vocal Clarity' }, gains: [-3, -1, 2, 6, 5, 2, -1] },
+  { id: 'techno', name: { ro: 'Techno / Rave', it: 'Techno / Rave', en: 'Techno / Rave' }, gains: [7, 5, 0, -2, 2, 5, 6] },
+  { id: 'pop', name: { ro: 'Muzica Pop', it: 'Musica Pop', en: 'Pop Radio' }, gains: [-1, 2, 3, 4, 1, -1, 2] },
+  { id: 'jazz', name: { ro: 'Club de Jazz', it: 'Jazz Club', en: 'Smooth Jazz' }, gains: [3, 2, 1, -1, 2, -1, 1] },
+  { id: 'electronic', name: { ro: 'Electronica / Ambient', it: 'Elettronica / Ambient', en: 'Electronic Glow' }, gains: [5, 3, -1, 2, 4, 2, 5] },
+  { id: 'lounge', name: { ro: 'Chillout Lounge', it: 'Chillout Lounge', en: 'Chillout Lounge' }, gains: [2, 1, -1, 0, 1, 2, 1] },
+];
+
+export const THEMES: ThemeConfig[] = [
+  {
+    id: 'matrix',
+    name: { ro: 'Verde Matrix', it: 'Verde Matrix', en: 'Matrix Green' },
+    bg: 'bg-[#050b07]',
+    surface: 'bg-[#0a160f]/90',
+    border: 'border-emerald-500/40',
+    panelBorder: 'border-emerald-600/20',
+    text: 'text-emerald-500',
+    accent: 'text-emerald-400 group-hover:text-emerald-300',
+    accentBg: 'bg-emerald-500/10',
+    accentHex: '#10b981',
+    glowColor: 'rgba(16, 185, 129, 0.5)',
+  },
+  {
+    id: 'cyberpunk',
+    name: { ro: 'Neon Cyberpunk', it: 'Neon Cyberpunk', en: 'Cyberpunk Pulse' },
+    bg: 'bg-[#0d0414]',
+    surface: 'bg-[#150a21]/95',
+    border: 'border-fuchsia-500/40',
+    panelBorder: 'border-fuchsia-600/25',
+    text: 'text-fuchsia-500',
+    accent: 'text-fuchsia-400 group-hover:text-fuchsia-300',
+    accentBg: 'bg-fuchsia-500/10',
+    accentHex: '#d946ef',
+    glowColor: 'rgba(217, 70, 239, 0.5)',
+  },
+  {
+    id: 'gold',
+    name: { ro: 'Clasic Aur', it: 'Oro Vintage', en: 'Vintage Gold' },
+    bg: 'bg-[#120e06]',
+    surface: 'bg-[#1a140b]/90',
+    border: 'border-amber-500/30',
+    panelBorder: 'border-amber-600/15',
+    text: 'text-amber-500',
+    accent: 'text-amber-400 group-hover:text-amber-300',
+    accentBg: 'bg-amber-500/10',
+    accentHex: '#f59e0b',
+    glowColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  {
+    id: 'indigo',
+    name: { ro: 'Cosmos Albastru', it: 'Cosmo Indaco', en: 'Amled Indigo' },
+    bg: 'bg-[#030712]',
+    surface: 'bg-[#0f172a]/95',
+    border: 'border-cyan-500/40',
+    panelBorder: 'border-cyan-600/20',
+    text: 'text-cyan-500',
+    accent: 'text-cyan-400 group-hover:text-cyan-300',
+    accentBg: 'bg-cyan-500/10',
+    accentHex: '#06b6d4',
+    glowColor: 'rgba(6, 180, 212, 0.5)',
+  },
+  {
+    id: 'crimson',
+    name: { ro: 'Roșu Alerge', it: 'Rosso Allarme', en: 'Crimson Alert' },
+    bg: 'bg-[#120202]',
+    surface: 'bg-[#1c0707]/90',
+    border: 'border-rose-600/40',
+    panelBorder: 'border-rose-600/20',
+    text: 'text-rose-500',
+    accent: 'text-rose-400 group-hover:text-rose-300',
+    accentBg: 'bg-rose-500/10',
+    accentHex: '#f43f5e',
+    glowColor: 'rgba(244, 63, 94, 0.5)',
+  },
+];
+
+export const TRANSLATIONS = {
+  ro: {
+    appTitle: 'SINTONIZATOR PREMIUM GLOBAL STREAM',
+    deckTitle: 'RETRO HI-FI DECK',
+    connected: 'CONECTAT',
+    connecting: 'CONECTARE...',
+    buffering: 'INCARCARE MEMORIE TAMPON...',
+    paused: 'PAUZĂ / STANDBY',
+    stopped: 'OPRIT',
+    error: 'EROARE DE ACORD',
+    bitrate: 'DEBIT BITRATE',
+    equalizer: 'EGALIZATOR AUDIO GRAFIC',
+    customPreset: 'Presetare Manuală',
+    searchPlaceholder: 'Caută posturi de radio online...',
+    popularStations: 'POSTURI DE RADIO RECOMANDATE',
+    allStations: 'TOATE POSTURILE',
+    searchResults: 'REZULTATELE CĂUTĂRII',
+    favorites: 'POSTURI PREFERATE',
+    noFavorites: 'Niciun post adăugat la favorite încă.',
+    volume: 'POTENȚIOMETRU VOLUM',
+    prev: 'PREV',
+    next: 'NEXT',
+    play: 'PROCESEAZĂ',
+    pause: 'SISTEAZĂ',
+    stationInfo: 'PARAMETRI ȘI METADATE RECEPȚIONATE',
+    stationName: 'Nume Post Semnal',
+    country: 'Țara de Origine',
+    language: 'Limba de Emisie',
+    genreTags: 'Etichete / Genuri',
+    format: 'Format Stream',
+    votes: 'Aprecieri Comunitate',
+    homepage: 'Pagina Oficială',
+    theme: 'SELECTARE ASPECT (TEMĂ DARK)',
+    lang: 'LIMBA INTERFEȚEI',
+    exportSettings: 'EXPORTĂ SETĂRI',
+    importSettings: 'IMPORTĂ SETĂRI',
+    about: 'DESPRE DISPOZITIV',
+    close: 'ÎNCHIDE',
+    windowsInstall: 'GHID INSTALARE WIN 10/11',
+    downloadInstaller: 'DESCARCĂ CONFIGURATOR INSTALARE WINDOWS (.BAT)',
+    searchBy: 'Filtrare după:',
+    searchByName: 'Nume',
+    searchByCountry: 'Țară',
+    searchByTag: 'Gen / Etichetă',
+    loadingSearch: 'Căutare în desfășurare în baza de date mondială...',
+    noStationsFound: 'Nu s-au găsit posturi pentru căutarea selectată.',
+    metadataAwaiting: 'Așteptare stream ... Semnal Audio Sincronizat',
+    signalLock: 'REZOLUȚIE SEMNAL LOCK',
+    simulatedWarning: 'NOTĂ: Deoarece unele fluxuri nu acceptă modul de analizor securizat CORS, analizatorul poate folosi estimări în timp real ale ritmului pentru a menține sincronicitatea.',
+    developerLabel: 'SISTEM AUDIO CONSTRUIT DE:',
+    windowsGuideTitle: 'Instalare Simplă pe Windows 10/11',
+    pwaOptionTitle: 'Opțiunea 1: Instalare ca PWA (Recomandată & Simplă)',
+    pwaOptionStep1: 'Deschideți această pagină în Google Chrome sau Microsoft Edge.',
+    pwaOptionStep2: 'Faceți clic pe pictograma mică (+) „Instalare” din bara de adrese a browserului (dreapta sus) sau selectați „Instalare aplicație” din meniul cu trei puncte.',
+    pwaOptionStep3: 'Se va crea o aplicație nativă complet autonomă, cu o scurtătură pe desktop și în meniul Start, fără bare de adrese, funcționând ca o aplicație clasică de Windows.',
+    batOptionTitle: 'Opțiunea 2: Creare Scurtătură Rapidă Desktop cu Configuratorul .BAT',
+    batOptionStep1: 'Descărcați fișierul configurator generator făcând clic pe butonul de mai jos.',
+    batOptionStep2: 'Rulați fișierul descărcat. Acesta va folosi motorul Windows Script original pentru a fixa instantaneu aplicația pe ecranul dvs. principal.',
+    uninstallTitle: 'Ghid de Dezinstalare Simplu',
+    uninstallStep1: 'Pentru PWA: Faceți clic pe cele trei puncte din partea de sus a ferestrei radio, apoi faceți clic pe „Dezinstalați aplicația”.',
+    uninstallStep2: 'Pentru Scurtătura .bat: Ștergeți pur și simplu pictograma de pe Desktop sau din Start. Nu va rămâne niciun reziduu în sistemul dvs. de fișiere Windows.',
+    settingsSuccess: 'Toate setările, profilul egalizorului și favoritele au fost importate cu succes!',
+    settingsError: 'Fișierul de setări audio este nevalid sau corupt.',
+    exportFilename: 'setari_global_stream_radio.json',
+    stereoActive: 'RECEPȚIE STEREO DE ÎNALTĂ REZOLUȚIE',
+    dynamicStats: 'STATISTICI FLUX SEMNAL',
+    signalStrength: 'PUTERE SEMNAL',
+    frequencyTitle: 'GRAFIC FRECVENȚE RESPONSIVE',
+    visualizerLabel: 'ANALIZATOR AUDIO SPECTRUM',
+    addFav: 'Adaugă Favorite',
+    removeFav: 'Șterge Favorite',
+    totalFound: 'Stații găsite',
+  },
+  it: {
+    appTitle: 'SINTONIZZATORE RADIO PREMIUM GLOBAL STREAM',
+    deckTitle: 'RETRO HI-FI DECK',
+    connected: 'CONNESSO',
+    connecting: 'CONNESSIONE...',
+    buffering: 'BUFFERING IN CORSO...',
+    paused: 'PAUSA / STANDBY',
+    stopped: 'SPENTO',
+    error: 'ERRORE DI SINTONIA',
+    bitrate: 'VELOCITÀ BITRATE',
+    equalizer: 'EQUALIZZATORE GRAFICO AUDIO',
+    customPreset: 'Manuale',
+    searchPlaceholder: 'Cerca stazioni radio in tutto il mondo...',
+    popularStations: 'STAZIONI CONSIGLIATE',
+    allStations: 'TUTTE LE STAZIONI',
+    searchResults: 'RISULTATI DELLA RICERCA',
+    favorites: 'STAZIONI PREFERITE',
+    noFavorites: 'Nessuna stazione aggiunta ai preferiti.',
+    volume: 'POTENZIOMETRO VOLUME',
+    prev: 'PREC',
+    next: 'SUCC',
+    play: 'AVVIA',
+    pause: 'PAUSA',
+    stationInfo: 'PARAMETRI E METADATI RICEVUTI',
+    stationName: 'Nome Stazione',
+    country: 'Paese d\'Origine',
+    language: 'Lingua di Trasmissione',
+    genreTags: 'Tag / Generi',
+    format: 'Formato Stream',
+    votes: 'Voti degli Utenti',
+    homepage: 'Sito Ufficiale',
+    theme: 'SELEZIONE DESIGN INTERFACCIA (TEMA DARK)',
+    lang: 'LINGUA INTERFACCIA',
+    exportSettings: 'ESPORTA IMPOSTAZIONI',
+    importSettings: 'IMPORTA IMPOSTAZIONI',
+    about: 'INFO SUL DISPOSITIVO',
+    close: 'CHIUDI',
+    windowsInstall: 'GUIDA WIN 10/11',
+    downloadInstaller: 'SCARICA CONFIGURATORE WINDOWS (.BAT)',
+    searchBy: 'Filtra per:',
+    searchByName: 'Nome',
+    searchByCountry: 'Paese',
+    searchByTag: 'Genere/Tag',
+    loadingSearch: 'Ricerca in corso nel database mondiale...',
+    noStationsFound: 'Nessuna stazione trovata per questa ricerca.',
+    metadataAwaiting: 'In attesa dello streaming ... Segnale Sincronizzato',
+    signalLock: 'AGGANCIAMENTO SEGNALE',
+    simulatedWarning: 'NOTA: Poiché alcuni flussi non supportano l\'analizzatore sicuro CORS, l\'analizzatore può utilizzare stime del ritmo in tempo reale per mantenere la sincronia.',
+    developerLabel: 'SISTEMA AUDIO PROGETTATO DA:',
+    windowsGuideTitle: 'Installazione Facile su Windows 10/11',
+    pwaOptionTitle: 'Opzione 1: Installazione come PWA (Consigliata & Facile)',
+    pwaOptionStep1: 'Apri questa pagina con Google Chrome o Microsoft Edge.',
+    pwaOptionStep2: 'Fai clic sull\'icona (+) "Installa" nella barra degli indirizzi o seleziona "Installa app" dal menu in alto a destra.',
+    pwaOptionStep3: 'Verrà creata un\'applicazione nativa autonoma con una comoda scorciatoia sul desktop e nel menu Start, priva di elementi del browser.',
+    batOptionTitle: 'Opzione 2: Crea Collegamento Desktop Rapido tramite Script .BAT',
+    batOptionStep1: 'Scarica il file del configuratore facendo clic sul pulsante sottostante.',
+    batOptionStep2: 'Esegui il file scaricato. Utilizzerà i comandi originali di Windows per appuntare istantaneamente la radio sul tuo desktop.',
+    uninstallTitle: 'Guida Semplice per la Disinstallazione',
+    uninstallStep1: 'Per la PWA: Fai clic sui tre punti in alto nella finestra della radio e seleziona "Disinstalla".',
+    uninstallStep2: 'Per lo Script .bat: Cancella semplicemente l\'icona dal Desktop o da Start. Non rimarranno file residui nel tuo sistema Windows.',
+    settingsSuccess: 'Tutte le impostazioni, il profilo EQ e i preferiti sono stati importati con successo!',
+    settingsError: 'Il file di configurazione audio caricato non è valido.',
+    exportFilename: 'impostazioni_global_stream_radio.json',
+    stereoActive: 'RICEZIONE STEREO AD ALTA RISOLUZIONE',
+    dynamicStats: 'STATISTICHE FLUSSO SEGNALE',
+    signalStrength: 'POTENZA SEGNALE',
+    frequencyTitle: 'DIAGRAMMA FREQUENZE RESPONSIVE',
+    visualizerLabel: 'ANALIZZATORE SPETTRO AUDIO',
+    addFav: 'Aggiungi Preferiti',
+    removeFav: 'Rimuovi Preferiti',
+    totalFound: 'Stazioni trovate',
+  },
+  en: {
+    appTitle: 'GLOBAL STREAM PREMIUM TUNER',
+    deckTitle: 'RETRO HI-FI DECK',
+    connected: 'CONNECTED',
+    connecting: 'CONNECTING...',
+    buffering: 'BUFFERING STREAM...',
+    paused: 'PAUSED / STANDBY',
+    stopped: 'OFFLINE',
+    error: 'TUNING ERROR',
+    bitrate: 'AUDIO STREAM BITRATE',
+    equalizer: 'GRAPHIC AUDIO EQUALIZER',
+    customPreset: 'Manual Adjust',
+    searchPlaceholder: 'Search live radio stations worldwide...',
+    popularStations: 'RECOMMENDED CHANNELS',
+    allStations: 'ALL STATIONS',
+    searchResults: 'SEARCH RESULTS',
+    favorites: 'FAVORITE STATIONS',
+    noFavorites: 'No stations marked as favorite yet.',
+    volume: 'VOLUME POTENTIOMETER',
+    prev: 'PREV',
+    next: 'NEXT',
+    play: 'POWER ON',
+    pause: 'STANDBY',
+    stationInfo: 'RECEIVED STATION PARAMETERS',
+    stationName: 'Station Name',
+    country: 'Country of Origin',
+    language: 'Broadcast Language',
+    genreTags: 'Genre Tags',
+    format: 'Stream Format',
+    votes: 'Community Votes',
+    homepage: 'Official Website',
+    theme: 'SELECT DECK COLORWAY (DARK ALWAYS)',
+    lang: 'DECK LANGUAGE',
+    exportSettings: 'EXPORT CONFIG',
+    importSettings: 'IMPORT CONFIG',
+    about: 'ABOUT DEVICE',
+    close: 'CLOSE',
+    windowsInstall: 'WIN 10/11 GUIDE',
+    downloadInstaller: 'DOWNLOAD WINDOWS SHORTCUT (.BAT)',
+    searchBy: 'Search Filter:',
+    searchByName: 'Name',
+    searchByCountry: 'Country',
+    searchByTag: 'Genre/Tag',
+    loadingSearch: 'Searching global database of 40,000+ streams...',
+    noStationsFound: 'No radio stations detected matching your prompt.',
+    metadataAwaiting: 'Awaiting digital stream connection ... Signal Locked',
+    signalLock: 'SIGNAL FREQUENCY LOCK',
+    simulatedWarning: 'NOTE: Because some external streams do not output CORS headers, the visualizer uses real-time beat processing to keep visual rhythm synchronous with audio.',
+    developerLabel: 'AUDIO DECK ENGINEERED BY:',
+    windowsGuideTitle: 'Easy Installation on Windows 10/11',
+    pwaOptionTitle: 'Option 1: Install as a PWA App (Highly Recommended)',
+    pwaOptionStep1: 'Open this webpage in Google Chrome or Microsoft Edge browser.',
+    pwaOptionStep2: 'Click the small (+) "Install" icon on the address bar (top right) or select "Install App" from the browser options menu.',
+    pwaOptionStep3: 'This creates a completely self-contained window with dedicated taskbar items and desktop launcher, operating like a classic Windows app.',
+    batOptionTitle: 'Option 2: Create instant Windows Desktop Shortcut with Configurator .BAT',
+    batOptionStep1: 'Generate and download the utility installer file using the button below.',
+    batOptionStep2: 'Double-click the loaded batch file. It instructs the native Windows Shell Script environment to pin the Global Radio directly onto your Desktop.',
+    uninstallTitle: 'How to Uninstall Simple and Clean',
+    uninstallStep1: 'For PWA Option: Click three dots in title bar of the Radio Window, and press "Uninstall App".',
+    uninstallStep2: 'For .bat Shortcut: Delete the generated shortcuts on your Desktop or Start Menu. No registry bloat or background files are leftover compiled.',
+    settingsSuccess: 'Your fully customized EQ configurations, history, and favorites were successfully loaded!',
+    settingsError: 'The audio settings configuration file uploaded is invalid.',
+    exportFilename: 'global_stream_radio_settings.json',
+    stereoActive: 'STEREO DIGITAL SIGNAL ACTIVE',
+    dynamicStats: 'STREAM DIAGNOSTIC PANEL',
+    signalStrength: 'SIGNAL STRENGTH',
+    frequencyTitle: 'BAND FREQUENCY RESPONSE DIAGRAM',
+    visualizerLabel: 'REAL-TIME SPECTRUM ANALYZER',
+    addFav: 'Add to Favorites',
+    removeFav: 'Remove Favorite',
+    totalFound: 'Stations discovered',
+  }
+};

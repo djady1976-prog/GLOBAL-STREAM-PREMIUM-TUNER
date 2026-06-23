@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------
+   GLOW AND RETRO SPECTRAL ANIMATIONS
+   ---------------------------------------------------- */
+
+@keyframes slide-left-right {
+  0% {
+    left: 0%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 0%;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-slide-left-right {
+  animation: slide-left-right 4s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.blink {
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+/* ----------------------------------------------------
+   VERTICAL SLIDER INTERACTIVITY SPECIFS
+   ---------------------------------------------------- */
+
+input[type="range"].sliding-vertical-range {
+  -webkit-appearance: slider-vertical;
+  width: 16px;
+  height: 100px;
+  background: #1c1917;
+  border-radius: 9999px;
+  outline: none;
+}
+
+/* Custom scrollbars for station browser lists */
+#stations-grid-list::-webkit-scrollbar {
+  width: 6px;
+}
+#stations-grid-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+}
+#stations-grid-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+#stations-grid-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Tiny typography specifications */
+.text-xxs {
+  font-size: 0.65rem;
+}
+.text-xxxs {
+  font-size: 0.55rem;
+}

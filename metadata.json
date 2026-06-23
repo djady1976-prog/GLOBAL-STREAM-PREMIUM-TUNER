@@ -1,0 +1,6 @@
+{
+  "name": "Global Stream Radio",
+  "description": "Premium online radio streaming live stations from around the world. Features a high-fidelity visualizer, multi-band graphic equalizer, user presets export/import, and multi-language support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

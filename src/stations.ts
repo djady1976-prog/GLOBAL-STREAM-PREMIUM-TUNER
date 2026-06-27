@@ -34,7 +34,7 @@ export const CURATED_STATIONS: RadioStation[] = [
   {
     id: 'ro_radiozu',
     name: 'Radio ZU Romania',
-    url: 'https://live.radiozu.ro:8020/radiozu',
+    url: 'http://live.radiozu.ro:8020/radiozu',
     country: 'Romania',
     language: 'Română',
     tags: ['Pop', 'Hits', 'Talk', 'Entertainment'],

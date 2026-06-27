@@ -37,7 +37,7 @@ async function startServer() {
             'Accept': '*/*',
             'Icy-MetaData': '0',
             'Connection': 'keep-alive',
-            'Host': parsedUrl.hostname
+            'Host': parsedUrl.host
           },
           // Bypass SSL/TLS expired/invalid certification errors on Romanian broadcast servers
           rejectUnauthorized: false

@@ -13,6 +13,7 @@ interface AboutModalProps {
   locale: any;
   settings: UserSettings;
   onImportSettings: (imported: Partial<UserSettings>) => void;
+  onChangeVisualizerMode: (mode: 'led' | 'bars' | 'oscilloscope' | 'circle') => void;
 }
 
 export default function AboutModal({
@@ -21,6 +22,7 @@ export default function AboutModal({
   locale,
   settings,
   onImportSettings,
+  onChangeVisualizerMode,
 }: AboutModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<{ type: 'idle' | 'success' | 'error'; msg: string }>({
@@ -163,6 +165,47 @@ export default function AboutModal({
             <div className="flex justify-between py-1">
               <span className="text-stone-500 text-[10px] uppercase font-bold">DYNAMIC ENGINE:</span>
               <span className="text-stone-300">WEB AUDIO CONTEXT SENSOR</span>
+            </div>
+          </div>
+
+          {/* Visualizer Display Mode selector block */}
+          <div className="space-y-2.5 p-4 border rounded-xl bg-stone-900/10" style={{ borderColor: theme.accentHex + '22' }}>
+            <div className="font-mono text-[10px] text-stone-400 font-bold uppercase tracking-wider">
+              {locale.visualizerModeTitle || 'VISUALIZER DISPLAY MODE'}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'led', label: locale.ledMode || 'Vintage LED Grid' },
+                { id: 'bars', label: locale.barsMode || 'Continuous FFT Bars' },
+                { id: 'oscilloscope', label: locale.waveformMode || 'Oscilloscope Waveform' },
+                { id: 'circle', label: locale.circleMode || 'Circular Audio Coil' },
+              ].map((m) => {
+                const isActive = (settings.visualizerMode || 'led') === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => onChangeVisualizerMode(m.id as any)}
+                    className="py-2.5 px-3 rounded-lg text-left text-xxs font-bold font-mono tracking-tight border cursor-pointer active:scale-95 transition-all duration-150 flex items-center justify-between"
+                    style={{
+                      backgroundColor: isActive ? theme.accentHex + '15' : '#070709',
+                      borderColor: isActive ? theme.accentHex + '44' : '#18181c',
+                      color: isActive ? '#ffffff' : '#71717a'
+                    }}
+                  >
+                    <span>{m.label}</span>
+                    {isActive && (
+                      <span 
+                        className="h-1.5 w-1.5 rounded-full" 
+                        style={{ 
+                          backgroundColor: theme.accentHex,
+                          boxShadow: `0 0 6px ${theme.glowColor}` 
+                        }} 
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

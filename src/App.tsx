@@ -63,6 +63,7 @@ export default function App() {
           favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
           eqWeights: Array.isArray(parsed.eqWeights) ? parsed.eqWeights : [0, 0, 0, 0, 0, 0, 0],
           activeEqPreset: parsed.activeEqPreset || 'flat',
+          visualizerMode: parsed.visualizerMode || 'led',
         };
       }
     } catch (e) {
@@ -75,6 +76,7 @@ export default function App() {
       favorites: ['ro_kissfm', 'it_radioitalia', 'int_cafedelmar', 'int_groovesalad'],
       eqWeights: [0, 0, 0, 0, 0, 0, 0],
       activeEqPreset: 'flat',
+      visualizerMode: 'led',
     };
   });
 
@@ -109,6 +111,10 @@ export default function App() {
   const [analyserStateNode, setAnalyserStateNode] = useState<AnalyserNode | null>(null);
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // New tactile physical features state
+  const [sleepTimeLeft, setSleepTimeLeft] = useState<number | null>(null);
+  const [isStereoWide, setIsStereoWide] = useState(true);
+
   // ----------------------------------------------------
   // WEB AUDIO & AUDIO GRAPH REF POINTERS
   // ----------------------------------------------------
@@ -120,6 +126,12 @@ export default function App() {
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
   const audioCleanupRef = useRef<(() => void) | null>(null);
+
+  // Refs for custom physical features
+  const sleepTimerRef = useRef<any>(null);
+  const staticNoiseSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const staticNoiseGainRef = useRef<GainNode | null>(null);
+  const delayRNodeRef = useRef<DelayNode | null>(null);
 
   // Refs for tracking active station and state, avoiding stale closures in on-mount audio listeners
   const selectedStationRef = useRef<RadioStation>(selectedStation);
@@ -193,7 +205,7 @@ export default function App() {
     };
   }, []);
 
-  // Sync Volume immediately to HTMLAudioElement instances
+  // Sync Volume immediately to HTMLAudioElement instances and FM static noise
   useEffect(() => {
     if (audioCorsRef.current) {
       audioCorsRef.current.volume = settings.volume;
@@ -201,7 +213,136 @@ export default function App() {
     if (audioDirectRef.current) {
       audioDirectRef.current.volume = settings.volume;
     }
+    if (staticNoiseGainRef.current && audioContextRef.current) {
+      staticNoiseGainRef.current.gain.setValueAtTime(0.06 * settings.volume, audioContextRef.current.currentTime);
+    }
   }, [settings.volume]);
+
+  // Sleep Timer Tick Countdown Effect
+  useEffect(() => {
+    if (sleepTimeLeft !== null && sleepTimeLeft > 0) {
+      sleepTimerRef.current = setTimeout(() => {
+        setSleepTimeLeft((prev) => {
+          if (prev !== null && prev <= 1) {
+            handleStop();
+            return null;
+          }
+          return prev !== null ? prev - 1 : null;
+        });
+      }, 1000);
+    } else {
+      if (sleepTimerRef.current) {
+        clearTimeout(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (sleepTimerRef.current) {
+        clearTimeout(sleepTimerRef.current);
+      }
+    };
+  }, [sleepTimeLeft]);
+
+  // Dynamic Stereo/Mono Haas Delay Update Effect
+  useEffect(() => {
+    if (delayRNodeRef.current && audioContextRef.current) {
+      const targetDelay = isStereoWide ? 0.018 : 0.0;
+      delayRNodeRef.current.delayTime.setValueAtTime(targetDelay, audioContextRef.current.currentTime);
+    }
+  }, [isStereoWide]);
+
+  // FM Static Noise Play/Fade controller helpers
+  const playFMStaticNoise = () => {
+    const ctx = audioContextRef.current;
+    if (!ctx || ctx.state === 'closed') return;
+
+    if (staticNoiseSourceRef.current) {
+      if (staticNoiseGainRef.current) {
+        staticNoiseGainRef.current.gain.setValueAtTime(staticNoiseGainRef.current.gain.value, ctx.currentTime);
+        staticNoiseGainRef.current.gain.linearRampToValueAtTime(0.06 * settings.volume, ctx.currentTime + 0.3);
+      }
+      return;
+    }
+
+    try {
+      const bufferSize = 2 * ctx.sampleRate;
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.001, ctx.currentTime);
+      noiseGain.gain.linearRampToValueAtTime(0.06 * settings.volume, ctx.currentTime + 0.4);
+
+      noiseSource.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noiseSource.start();
+
+      staticNoiseSourceRef.current = noiseSource;
+      staticNoiseGainRef.current = noiseGain;
+    } catch (err) {
+      console.warn('Could not launch FM static noise synthesis:', err);
+    }
+  };
+
+  const fadeOutFMStaticNoise = () => {
+    const ctx = audioContextRef.current;
+    const gainNode = staticNoiseGainRef.current;
+    const sourceNode = staticNoiseSourceRef.current;
+
+    if (ctx && gainNode && sourceNode) {
+      try {
+        gainNode.gain.setValueAtTime(gainNode.gain.value, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.6);
+        
+        setTimeout(() => {
+          try {
+            if (staticNoiseSourceRef.current === sourceNode) {
+              sourceNode.stop();
+              sourceNode.disconnect();
+              staticNoiseSourceRef.current = null;
+              staticNoiseGainRef.current = null;
+            }
+          } catch (e) {}
+        }, 700);
+      } catch (err) {
+        console.warn('Error fading out static FM hiss:', err);
+      }
+    }
+  };
+
+  const stopFMStaticNoise = () => {
+    if (staticNoiseSourceRef.current) {
+      try {
+        staticNoiseSourceRef.current.stop();
+        staticNoiseSourceRef.current.disconnect();
+      } catch (e) {}
+      staticNoiseSourceRef.current = null;
+      staticNoiseGainRef.current = null;
+    }
+  };
+
+  // FM Static Noise Trigger Effect
+  useEffect(() => {
+    if (playbackState === 'connecting' || playbackState === 'buffering') {
+      if (audioRef.current) {
+        try {
+          initAudioGraph(audioRef.current);
+        } catch (e) {}
+      }
+      playFMStaticNoise();
+    } else if (playbackState === 'playing') {
+      fadeOutFMStaticNoise();
+    } else {
+      stopFMStaticNoise();
+    }
+  }, [playbackState]);
 
   // ----------------------------------------------------
   // WEB AUDIO GRAPH FABRICATOR
@@ -280,14 +421,31 @@ export default function App() {
       const source = ctx.createMediaElementSource(audioElement);
       sourceNodeRef.current = source;
 
-      // Connect source -> filter 1 -> filter 2 -> ... -> filter 7 -> analyser -> output
+      // Connect source -> filter 1 -> filter 2 -> ... -> filter 7 -> Haas Stereo Delay -> analyser -> output
       let lastNode: AudioNode = source;
       filterNodes.forEach((filter) => {
         lastNode.connect(filter);
         lastNode = filter;
       });
 
-      lastNode.connect(analyser);
+      try {
+        const splitter = ctx.createChannelSplitter(2);
+        const merger = ctx.createChannelMerger(2);
+        const delayR = ctx.createDelay();
+        delayRNodeRef.current = delayR;
+        delayR.delayTime.value = isStereoWide ? 0.018 : 0.0;
+
+        lastNode.connect(splitter);
+        splitter.connect(merger, 0, 0); // Left direct to left merger
+        splitter.connect(delayR, 1, 0); // Right direct to delay R
+        delayR.connect(merger, 0, 1);   // Delayed R to right merger
+
+        merger.connect(analyser);
+      } catch (haasErr) {
+        console.warn('Haas spatial delay build failed, using fallback connection:', haasErr);
+        lastNode.connect(analyser);
+      }
+
       analyser.connect(ctx.destination);
 
       setIsSimulated(false);
@@ -1101,6 +1259,100 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Row 2: Sleep Timer control block (md:col-span-6) */}
+              <div className="md:col-span-6 bg-[#030303]/90 border border-stone-900/80 p-3 rounded-xl flex flex-col justify-between font-mono h-[74px]">
+                <div className="flex justify-between items-center text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${sleepTimeLeft !== null ? 'bg-amber-500 animate-ping' : 'bg-stone-700'}`} />
+                    {locale.sleepTimer}
+                  </span>
+                  {sleepTimeLeft !== null ? (
+                    <span style={{ color: activeTheme.accentHex }} className="font-extrabold tracking-wider animate-pulse">
+                      [{Math.floor(sleepTimeLeft / 60)}:{(sleepTimeLeft % 60).toString().padStart(2, '0')}]
+                    </span>
+                  ) : (
+                    <span className="text-stone-600 font-black">{locale.off}</span>
+                  )}
+                </div>
+
+                <div className="flex gap-1">
+                  {[
+                    { label: locale.off, val: null },
+                    { label: '15m', val: 15 * 60 },
+                    { label: '30m', val: 30 * 60 },
+                    { label: '45m', val: 45 * 60 },
+                    { label: '60m', val: 60 * 60 },
+                  ].map((btn, idx) => {
+                    const isActive = (btn.val === null && sleepTimeLeft === null) || 
+                                     (btn.val !== null && sleepTimeLeft !== null && Math.abs(sleepTimeLeft - btn.val) <= 15);
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setSleepTimeLeft(btn.val)}
+                        className="flex-1 py-1.5 px-1 rounded-md text-[9px] font-bold tracking-tight border cursor-pointer active:scale-95 transition-all duration-155 uppercase text-center"
+                        style={{
+                          backgroundColor: isActive ? activeTheme.accentHex + '18' : '#0a0a0c',
+                          borderColor: isActive ? activeTheme.accentHex + '55' : '#18181c',
+                          color: isActive ? activeTheme.accentHex : '#71717a'
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: Stereo Wide / Mono hardware controller (md:col-span-6) */}
+              <div className="md:col-span-6 bg-[#030303]/90 border border-stone-900/80 p-3 rounded-xl flex items-center justify-between font-mono h-[74px]">
+                <div className="flex flex-col justify-between h-full flex-1 pr-2">
+                  <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1">
+                    AUDIO MATRIX SPATIAL
+                  </span>
+                  
+                  {/* Status readout */}
+                  <div className="flex items-center gap-1.5">
+                    <span 
+                      className="h-2 w-2 rounded-full shadow-lg animate-pulse"
+                      style={{ 
+                        backgroundColor: isStereoWide ? activeTheme.accentHex : '#f59e0b',
+                        boxShadow: `0 0 6px ${isStereoWide ? activeTheme.accentHex : '#f59e0b'}`
+                      }}
+                    />
+                    <span 
+                      className="text-[9.5px] font-extrabold uppercase tracking-tight text-stone-200"
+                    >
+                      {isStereoWide ? 'HAAS STEREO WIDE' : 'MONO DECK'}
+                    </span>
+                  </div>
+
+                  <span className="text-[7.5px] text-stone-600 font-bold uppercase">
+                    {isStereoWide ? '18ms Haas delay active' : 'Dual summation'}
+                  </span>
+                </div>
+
+                {/* Tactile slide switch wrapper */}
+                <div 
+                  onClick={() => setIsStereoWide(!isStereoWide)}
+                  className="w-24 bg-stone-950 border border-stone-850 p-0.5 rounded-lg flex items-center justify-between cursor-pointer select-none relative overflow-hidden"
+                  title="Toggle stereophonic spatial soundstage enhancer"
+                >
+                  <div 
+                    className="absolute inset-y-0.5 w-[46px] rounded bg-stone-900 border border-stone-800 transition-all duration-200 shadow-md flex items-center justify-center"
+                    style={{
+                      left: isStereoWide ? '50px' : '2px',
+                      borderColor: activeTheme.accentHex + '33'
+                    }}
+                  />
+                  <span className={`flex-1 text-center text-[7.5px] font-black z-10 py-1 transition-colors ${!isStereoWide ? 'text-amber-500 font-extrabold' : 'text-stone-600 font-bold'}`}>
+                    MONO
+                  </span>
+                  <span className={`flex-1 text-center text-[7.5px] font-black z-10 py-1 transition-colors ${isStereoWide ? 'text-white font-extrabold' : 'text-stone-600 font-bold'}`} style={{ color: isStereoWide ? activeTheme.accentHex : '' }}>
+                    STEREO
+                  </span>
+                </div>
+              </div>
+
             </div>
 
             {/* Custom caution message alerting user regarding possible CORS blocks */}
@@ -1129,6 +1381,8 @@ export default function App() {
             isSimulated={isSimulated}
             isPlaying={playbackState === 'playing'}
             audioVolume={settings.volume}
+            mode={settings.visualizerMode || 'led'}
+            onChangeMode={(newMode) => setSettings((p) => ({ ...p, visualizerMode: newMode }))}
           />
 
           {/* DYNAMIC RADIO DOPPLER STATION EMISSION POWER RADAR & PL SYSTEM */}
@@ -1509,6 +1763,7 @@ export default function App() {
           locale={locale}
           settings={settings}
           onImportSettings={handleImportSettings}
+          onChangeVisualizerMode={(newMode) => setSettings((p) => ({ ...p, visualizerMode: newMode }))}
         />
       )}
     </div>

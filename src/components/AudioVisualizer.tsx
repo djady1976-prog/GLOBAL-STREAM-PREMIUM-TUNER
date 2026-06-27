@@ -4,8 +4,10 @@
  */
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Activity, BarChart2, Waves, Sliders } from 'lucide-react';
+import { Activity, BarChart2, Waves, Sliders, Disc } from 'lucide-react';
 import { ThemeConfig } from '../types';
+
+export type VisualizerMode = 'bars' | 'led' | 'oscilloscope' | 'circle';
 
 interface AudioVisualizerProps {
   analyserNode: AnalyserNode | null;
@@ -13,9 +15,9 @@ interface AudioVisualizerProps {
   isSimulated: boolean;
   isPlaying: boolean;
   audioVolume: number;
+  mode: VisualizerMode;
+  onChangeMode: (mode: VisualizerMode) => void;
 }
-
-type Mode = 'bars' | 'led' | 'oscilloscope';
 
 export default function AudioVisualizer({
   analyserNode,
@@ -23,11 +25,12 @@ export default function AudioVisualizer({
   isSimulated,
   isPlaying,
   audioVolume,
+  mode,
+  onChangeMode,
 }: AudioVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const smoothDataArrayRef = useRef<Float32Array | null>(null);
-  const [mode, setMode] = useState<Mode>('led');
   const [dimensions, setDimensions] = useState({ width: 450, height: 160 });
 
   // Update canvas sizing dynamically using ResizeObserver as instructed in standard specifications
@@ -320,6 +323,107 @@ export default function AudioVisualizer({
         ctx.lineTo(width, height / 2);
         ctx.stroke();
       }
+      
+      // ----------------------------------------------------
+      // DRAW MODE: CIRCLE SOUNDSTAGE (NEON RADIAL ORB)
+      // ----------------------------------------------------
+      else if (mode === 'circle') {
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const baseRadius = Math.min(width, height) * 0.22;
+
+        // Calculate responsive pulse based on bass energy
+        let bassSum = 0;
+        const bassLimit = Math.max(1, Math.floor(bufferLength * 0.15));
+        for (let i = 0; i < bassLimit; i++) {
+          bassSum += smoothDataArray[i];
+        }
+        const avgBass = (bassSum / bassLimit) / 255;
+        const pulseRadius = baseRadius + avgBass * 18;
+
+        // Draw ambient background circular glow
+        const glowGrad = ctx.createRadialGradient(centerX, centerY, pulseRadius * 0.5, centerX, centerY, pulseRadius * 2);
+        glowGrad.addColorStop(0, theme.accentHex + '11');
+        glowGrad.addColorStop(0.5, theme.accentHex + '05');
+        glowGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw central core circle
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = theme.accentHex + '44';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = theme.accentHex;
+        ctx.stroke();
+
+        // Radiating spokes/bars around circle perimeter
+        const numSpokes = 72; // high density elegant spokes
+        const angleStep = (Math.PI * 2) / numSpokes;
+
+        for (let i = 0; i < numSpokes; i++) {
+          // Map spoke index to frequency buffer index
+          const dataIdx = Math.floor((i / numSpokes) * (bufferLength * 0.8)); // avoid highest empty bins
+          const percent = smoothDataArray[dataIdx] / 255;
+          const spokeLength = Math.max(4, percent * Math.min(width, height) * 0.45);
+
+          const angle = i * angleStep;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+
+          const startX = centerX + cos * pulseRadius;
+          const startY = centerY + sin * pulseRadius;
+
+          const endX = centerX + cos * (pulseRadius + spokeLength);
+          const endY = centerY + sin * (pulseRadius + spokeLength);
+
+          // Build elegant gradient for radiating spoke
+          const spokeGrad = ctx.createLinearGradient(startX, startY, endX, endY);
+          spokeGrad.addColorStop(0, theme.accentHex);
+          spokeGrad.addColorStop(0.7, theme.accentHex + '99');
+          spokeGrad.addColorStop(1, '#ffffff');
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+
+          ctx.strokeStyle = spokeGrad;
+          ctx.lineWidth = 2.5;
+          ctx.lineCap = 'round';
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = theme.accentHex;
+          ctx.stroke();
+
+          // Optional: Add tiny high-fidelity white dots at the tip of very loud spokes
+          if (percent > 0.6) {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(endX, endY, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Draw inner circular dial ring (dash pattern)
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = theme.accentHex + '25';
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius - 12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]); // restore continuous
+
+        // Draw center solid micro-ring
+        ctx.fillStyle = theme.accentHex + '1a';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseRadius - 18, 0, Math.PI * 2);
+        ctx.fill();
+      }
     };
 
     // Trigger loop execution
@@ -339,7 +443,7 @@ export default function AudioVisualizer({
         <div className="flex items-center gap-2">
           <Activity size={16} className="animate-pulse" style={{ color: theme.accentHex }} />
           <span className="font-mono text-xs font-bold uppercase tracking-wider" style={{ color: theme.accentHex }}>
-            {mode === 'led' ? 'LED BAR MATRIX' : mode === 'bars' ? 'SPECTRUM FFT' : 'ANALOG WAVEFORM'}
+            {mode === 'led' ? 'LED BAR MATRIX' : mode === 'bars' ? 'SPECTRUM FFT' : mode === 'oscilloscope' ? 'ANALOG WAVEFORM' : 'CIRCULAR COIL'}
           </span>
           {isSimulated && isPlaying && (
             <span className="text-[10px] font-mono border border-yellow-500/30 text-yellow-500/80 px-1.5 py-0.5 rounded animate-pulse">
@@ -356,7 +460,7 @@ export default function AudioVisualizer({
         {/* Visualizer Mode selector buttons */}
         <div className="flex gap-1" id="visualizer-selectors">
           <button
-            onClick={() => setMode('led')}
+            onClick={() => onChangeMode('led')}
             title="LED Matrix Mode"
             className={`p-1.5 rounded cursor-pointer transition-all duration-200 ${
               mode === 'led' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-300'
@@ -366,7 +470,7 @@ export default function AudioVisualizer({
             <Sliders size={14} />
           </button>
           <button
-            onClick={() => setMode('bars')}
+            onClick={() => onChangeMode('bars')}
             title="Continuous FFT Bars Mode"
             className={`p-1.5 rounded cursor-pointer transition-all duration-200 ${
               mode === 'bars' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-300'
@@ -376,7 +480,7 @@ export default function AudioVisualizer({
             <BarChart2 size={14} />
           </button>
           <button
-            onClick={() => setMode('oscilloscope')}
+            onClick={() => onChangeMode('oscilloscope')}
             title="Oscilloscope Mode"
             className={`p-1.5 rounded cursor-pointer transition-all duration-200 ${
               mode === 'oscilloscope' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-300'
@@ -384,6 +488,16 @@ export default function AudioVisualizer({
             style={{ color: mode === 'oscilloscope' ? theme.accentHex : '' }}
           >
             <Waves size={14} />
+          </button>
+          <button
+            onClick={() => onChangeMode('circle')}
+            title="Circular Soundstage Mode"
+            className={`p-1.5 rounded cursor-pointer transition-all duration-200 ${
+              mode === 'circle' ? 'bg-stone-800 text-white' : 'text-stone-500 hover:text-stone-300'
+            }`}
+            style={{ color: mode === 'circle' ? theme.accentHex : '' }}
+          >
+            <Disc size={14} />
           </button>
         </div>
       </div>

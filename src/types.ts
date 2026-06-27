@@ -41,6 +41,7 @@ export interface UserSettings {
   favorites: string[]; // station URLs or IDs
   eqWeights: number[]; // 7 elements, -12 to +12 dB
   activeEqPreset: string;
+  visualizerMode?: 'led' | 'bars' | 'oscilloscope' | 'circle';
 }
 
 export const EQ_FREQUENCIES = [60, 150, 400, 1000, 2500, 6000, 15000]; // 7 bands
@@ -171,6 +172,11 @@ export const TRANSLATIONS = {
     exportSettings: 'EXPORTĂ SETĂRI',
     importSettings: 'IMPORTĂ SETĂRI',
     about: 'DESPRE DISPOZITIV',
+    visualizerModeTitle: 'MOD VIZUALIZARE ANALIZATOR',
+    barsMode: 'FFT Spectre Bare',
+    waveformMode: 'Osciloscop Waveform',
+    circleMode: 'Coil Circular',
+    ledMode: 'Matrice LED Hi-Fi',
     close: 'ÎNCHIDE',
     windowsInstall: 'GHID INSTALARE WIN 10/11',
     downloadInstaller: 'DESCARCĂ CONFIGURATOR INSTALARE WINDOWS (.BAT)',
@@ -206,6 +212,10 @@ export const TRANSLATIONS = {
     addFav: 'Adaugă Favorite',
     removeFav: 'Șterge Favorite',
     totalFound: 'Stații găsite',
+    sleepTimer: 'TEMPORIZATOR OPRIRE',
+    stereoWide: 'SPAȚIALITATE STEREO',
+    monoMode: 'MONO RECEPȚIE',
+    off: 'OPRIT',
   },
   it: {
     appTitle: 'SINTONIZZATORE RADIO PREMIUM GLOBAL STREAM',
@@ -243,6 +253,11 @@ export const TRANSLATIONS = {
     exportSettings: 'ESPORTA IMPOSTAZIONI',
     importSettings: 'IMPORTA IMPOSTAZIONI',
     about: 'INFO SUL DISPOSITIVO',
+    visualizerModeTitle: 'MODALITÀ VISUALIZZATORE',
+    barsMode: 'Bare Spettro FFT',
+    waveformMode: 'Oscilloscopio Waveform',
+    circleMode: 'Spirale Circolare',
+    ledMode: 'Matrice LED Hi-Fi',
     close: 'CHIUDI',
     windowsInstall: 'GUIDA WIN 10/11',
     downloadInstaller: 'SCARICA CONFIGURATORE WINDOWS (.BAT)',
@@ -278,6 +293,10 @@ export const TRANSLATIONS = {
     addFav: 'Aggiungi Preferiti',
     removeFav: 'Rimuovi Preferiti',
     totalFound: 'Stazioni trovate',
+    sleepTimer: 'TEMPORIZZATORE DI SPEGNIMENTO',
+    stereoWide: 'AMPLIFICAZIONE SPAZIALE',
+    monoMode: 'RICEZIONE MONO',
+    off: 'SPENTO',
   },
   en: {
     appTitle: 'GLOBAL STREAM PREMIUM TUNER',
@@ -315,6 +334,11 @@ export const TRANSLATIONS = {
     exportSettings: 'EXPORT CONFIG',
     importSettings: 'IMPORT CONFIG',
     about: 'ABOUT DEVICE',
+    visualizerModeTitle: 'VISUALIZER DISPLAY MODE',
+    barsMode: 'Continuous FFT Bars',
+    waveformMode: 'Oscilloscope Waveform',
+    circleMode: 'Circular Audio Coil',
+    ledMode: 'Vintage LED Grid',
     close: 'CLOSE',
     windowsInstall: 'WIN 10/11 GUIDE',
     downloadInstaller: 'DOWNLOAD WINDOWS SHORTCUT (.BAT)',
@@ -350,5 +374,9 @@ export const TRANSLATIONS = {
     addFav: 'Add to Favorites',
     removeFav: 'Remove Favorite',
     totalFound: 'Stations discovered',
+    sleepTimer: 'SLEEP COUNTDOWN TIMER',
+    stereoWide: 'STEREO SPATIAL EXPANDER',
+    monoMode: 'MONO TUNING',
+    off: 'OFF',
   }
 };

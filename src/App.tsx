@@ -355,14 +355,15 @@ export default function App() {
           audioContextRef.current.resume().catch(console.warn);
         }
 
+        // Check if this audio element was already linked to a MediaElementSourceNode
+        if ((audioElement as any)._hasSourceNode) {
+          setAnalyserStateNode(analyserNodeRef.current);
+          setIsSimulated(false);
+          return;
+        }
+
         // Cleanly disconnect old media source link from filters to avoid ghost nodes
         if (sourceNodeRef.current) {
-          // If already connected to the same audio element, skip recreating
-          if ((sourceNodeRef.current as any).mediaElement === audioElement) {
-            setAnalyserStateNode(analyserNodeRef.current);
-            setIsSimulated(false);
-            return;
-          }
           try {
             sourceNodeRef.current.disconnect();
           } catch (e) {
@@ -371,12 +372,16 @@ export default function App() {
         }
 
         const source = audioContextRef.current.createMediaElementSource(audioElement);
+        (audioElement as any)._hasSourceNode = true;
         sourceNodeRef.current = source;
-        source.connect(filtersRef.current[0]);
+        if (filtersRef.current.length > 0) {
+          source.connect(filtersRef.current[0]);
+        }
         setAnalyserStateNode(analyserNodeRef.current);
         setIsSimulated(false);
       } catch (err) {
-        console.warn('Could not plug new audio element to existing audio graph:', err);
+        console.warn('Could not plug audio element to existing audio graph:', err);
+        setIsSimulated(true);
       }
       return;
     }
@@ -384,7 +389,6 @@ export default function App() {
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       // Configure latencyHint as 'playback' to request optimized, larger audio buffer alignments
-      // from the client sound card, which completely eliminates decoding lag and click pops!
       const ctx = new AudioCtxClass({ latencyHint: 'playback' });
       audioContextRef.current = ctx;
 
@@ -394,15 +398,14 @@ export default function App() {
 
       // 1. Build Analyser
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128; // compact power of 2 (64 frequency bounds) for beautiful real-time performance
-      analyser.smoothingTimeConstant = 0.85; // smooth and professional, easing visual transitions
+      analyser.fftSize = 128; // compact power of 2 (64 frequency bounds) for real-time performance
+      analyser.smoothingTimeConstant = 0.85;
       analyserNodeRef.current = analyser;
       setAnalyserStateNode(analyser);
 
       // 2. Build 7-Band Equalizer cascade filters
       const filterNodes = EQ_FREQUENCIES.map((freq, i) => {
         const filter = ctx.createBiquadFilter();
-        // High frequency cutoff types
         if (i === 0) {
           filter.type = 'lowshelf';
         } else if (i === EQ_FREQUENCIES.length - 1) {
@@ -419,6 +422,7 @@ export default function App() {
 
       // 3. Connect Media Source
       const source = ctx.createMediaElementSource(audioElement);
+      (audioElement as any)._hasSourceNode = true;
       sourceNodeRef.current = source;
 
       // Connect source -> filter 1 -> filter 2 -> ... -> filter 7 -> Haas Stereo Delay -> analyser -> output
@@ -484,26 +488,28 @@ export default function App() {
       audioContextRef.current.resume().catch(console.warn);
     }
 
-    // Determine what URL we are playing
     let finalUrl = streamUrl;
     let actualForceNoCors = forceNoCors;
 
-    // By default, Stage 1 routes all traffic through our local Express proxy in server.ts
-    // This resolves SSL failures, expired certs, CORS rules, and secure content issues natively,
-    // and guarantees that the Web Audio Graph receives real audio data for real-time visualizers.
     if (attempt === 1 && !forceNoCors) {
       finalUrl = `/api/proxy-stream?url=${encodeURIComponent(streamUrl)}`;
       actualForceNoCors = false;
-      console.log('Tuning stream via Premium SSL-bypass Proxy (Stage 1):', finalUrl);
-    } else if (attempt === 2 || forceNoCors) {
+      console.log('[STAGE 1 TUNING] Connecting stream via Proxy:', finalUrl);
+    } else if (attempt === 2) {
+      // Stage 2: Retry via proxy with timestamp cache-buster
+      finalUrl = `/api/proxy-stream?url=${encodeURIComponent(streamUrl)}&_t=${Date.now()}`;
+      actualForceNoCors = false;
+      console.log('[STAGE 2 TUNING] Retrying stream via Proxy with cache-buster:', finalUrl);
+    } else {
+      // Stage 3: Direct URL fallback if HTTPS
       finalUrl = streamUrl;
       actualForceNoCors = true;
-      console.log('Spawning direct streaming fallback link (Stage 2):', finalUrl);
+      console.log('[STAGE 3 TUNING] Trying direct stream connection:', finalUrl);
     }
 
     const useCors = !actualForceNoCors;
 
-    // 1. Clean up old event listeners from previous session to avoid memory leaks/accumulations
+    // 1. Clean up old event listeners from previous session
     if (audioCleanupRef.current) {
       try {
         audioCleanupRef.current();
@@ -513,11 +519,11 @@ export default function App() {
       audioCleanupRef.current = null;
     }
 
-    // 2. Shut down and reset both elements so they don't play simultaneously
+    // 2. Shut down and reset active elements
     if (audioCorsRef.current) {
       try {
         audioCorsRef.current.pause();
-        audioCorsRef.current.src = '';
+        audioCorsRef.current.removeAttribute('src');
         audioCorsRef.current.load();
       } catch (e) {
         console.warn('Error resetting CORS element:', e);
@@ -526,7 +532,7 @@ export default function App() {
     if (audioDirectRef.current) {
       try {
         audioDirectRef.current.pause();
-        audioDirectRef.current.src = '';
+        audioDirectRef.current.removeAttribute('src');
         audioDirectRef.current.load();
       } catch (e) {
         console.warn('Error resetting direct element:', e);
@@ -547,13 +553,11 @@ export default function App() {
       }
       audio = audioDirectRef.current;
       audio.removeAttribute('crossOrigin');
-      setIsSimulated(true); // Fall back to estimated visualizer
+      setIsSimulated(true);
     }
 
-    // Assign reference so secondary handlers (stop, pause, etc) track the active player
+    // Assign reference so secondary handlers track the active player
     audioRef.current = audio;
-
-    // Direct browser to pre-buffer proactively to eliminate delay lag gaps
     audio.preload = 'auto';
     audio.volume = settings.volume;
 
@@ -575,10 +579,9 @@ export default function App() {
       ) {
         return;
       }
-      console.warn('Play promise rejected, check fallback action.', err);
-      if (attempt === 1 && !forceNoCors) {
-        // Fall back to direct stream Stage 2
-        setTimeout(() => tuneToStream(streamUrl, true, 2), 100);
+      console.warn(`[PLAY FAILURE] Attempt ${attempt} failed:`, err.message || err);
+      if (attempt < 3) {
+        setTimeout(() => tuneToStream(streamUrl, false, attempt + 1), 200);
       } else {
         setPlaybackState('error');
       }
@@ -588,10 +591,9 @@ export default function App() {
       if (playbackStateRef.current === 'stopped') {
         return;
       }
-      console.warn('Audio element thrown error. Initiating direct streaming fallback...', e);
-      if (attempt === 1 && !forceNoCors) {
-        // Fall back to direct stream Stage 2
-        setTimeout(() => tuneToStream(streamUrl, true, 2), 100);
+      console.warn(`[AUDIO ERROR] Stream error on attempt ${attempt}:`, e);
+      if (attempt < 3) {
+        setTimeout(() => tuneToStream(streamUrl, false, attempt + 1), 200);
       } else {
         setPlaybackState('error');
       }
@@ -617,12 +619,12 @@ export default function App() {
       audio.removeEventListener('error', onError);
     };
 
-    // 4. Connect Web Audio graph ONLY if useCors is true!
+    // 4. Connect Web Audio graph ONLY if useCors is true
     if (useCors) {
       try {
         initAudioGraph(audio);
       } catch (err) {
-        console.warn('Failed to link new audio to graph, switching to safe simulated mode', err);
+        console.warn('Failed to link audio to graph, switching to safe simulated mode', err);
         setIsSimulated(true);
       }
     }
@@ -640,8 +642,8 @@ export default function App() {
       }
     } catch (e) {
       console.warn('Audio play crashed. Fallback triggered:', e);
-      if (attempt === 1 && !forceNoCors) {
-        tuneToStream(streamUrl, true, 2);
+      if (attempt < 3) {
+        tuneToStream(streamUrl, false, attempt + 1);
       } else {
         setPlaybackState('error');
       }

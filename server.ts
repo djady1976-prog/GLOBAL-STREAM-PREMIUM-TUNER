@@ -9,6 +9,13 @@ async function startServer() {
   const PORT = 3000;
 
   // 1. API proxy route for secure cross-origin streaming and mixed content bypass
+  app.options('/api/proxy-stream', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.sendStatus(204);
+  });
+
   app.get('/api/proxy-stream', (req, res) => {
     const streamUrl = req.query.url as string;
     if (!streamUrl) {
@@ -17,8 +24,11 @@ async function startServer() {
 
     // Helper to proxy stream with redirection, SSL bypass and proper header forwarding
     function pipeStream(url: string, depth = 0) {
-      if (depth > 5) {
-        return res.status(500).send('Too many redirects');
+      if (depth > 6) {
+        if (!res.headersSent) {
+          res.status(500).send('Too many redirects');
+        }
+        return;
       }
 
       try {
@@ -37,17 +47,22 @@ async function startServer() {
             'Accept': '*/*',
             'Icy-MetaData': '0',
             'Connection': 'keep-alive',
-            'Host': parsedUrl.host
           },
-          // Bypass SSL/TLS expired/invalid certification errors on Romanian broadcast servers
+          insecureHTTPParser: true, // Crucial for Icecast/Shoutcast legacy ICY 200 OK headers
           rejectUnauthorized: false
         };
 
+        let hasResponded = false;
+
         const proxyReq = requestModule.request(requestOptions, (proxyRes: any) => {
-          // Handle redirects (e.g. 301, 302, 307, 308)
+          hasResponded = true;
+          // Clear connection timeout once headers arrive so live stream plays continuously!
+          proxyReq.setTimeout(0);
+
+          // Handle redirects (301, 302, 303, 307, 308)
           if (proxyRes.statusCode && proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
-            let redirectUrl = proxyRes.headers.location;
-            if (!redirectUrl.startsWith('http')) {
+            let redirectUrl = proxyRes.headers.location.trim();
+            if (!redirectUrl.toLowerCase().startsWith('http://') && !redirectUrl.toLowerCase().startsWith('https://')) {
               redirectUrl = new URL(redirectUrl, url).href;
             }
 
@@ -72,14 +87,40 @@ async function startServer() {
             return;
           }
 
-          // Forward status code and content-type headers
-          const contentType = proxyRes.headers['content-type'];
-          res.setHeader('Content-Type', contentType || 'audio/mpeg');
+          // Handle 4xx / 5xx error responses with fallback attempts
+          if (proxyRes.statusCode && proxyRes.statusCode >= 400) {
+            console.warn(`[PROXY WARN] Remote stream ${url} returned status ${proxyRes.statusCode}`);
+            if (url.startsWith('https://') && !res.headersSent) {
+              const fallbackUrl = url.replace(/^https:\/\//i, 'http://');
+              console.log(`[PROXY FALLBACK] Retrying 4xx/5xx with plain HTTP fallback: ${fallbackUrl}`);
+              pipeStream(fallbackUrl, depth + 1);
+              return;
+            }
+            if (!res.headersSent) {
+              return res.status(proxyRes.statusCode).send(`Remote stream error ${proxyRes.statusCode}`);
+            }
+            return;
+          }
+
+          // Infer appropriate content-type for audio streaming
+          let contentType = proxyRes.headers['content-type'] || '';
+          if (!contentType || contentType.includes('text/html') || contentType.includes('text/plain')) {
+            if (url.includes('.aac')) {
+              contentType = 'audio/aac';
+            } else if (url.includes('.ogg')) {
+              contentType = 'audio/ogg';
+            } else {
+              contentType = 'audio/mpeg';
+            }
+          }
+
+          res.setHeader('Content-Type', contentType);
           res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', '*');
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           res.setHeader('Pragma', 'no-cache');
           res.setHeader('Expires', '0');
-          res.setHeader('Transfer-Encoding', 'chunked');
           res.setHeader('X-Accel-Buffering', 'no');
 
           // Disable Nagle's algorithm to allow instant low-latency streaming chunk transmission
@@ -107,11 +148,11 @@ async function startServer() {
         proxyReq.on('error', (err: any) => {
           console.error(`[PROXY ERROR] Direct link failed for ${url}:`, err.message);
           
-          // Fallback to plain HTTP if HTTPS fails (important for custom shoutcast/icecast ports which often do not support SSL)
-          if (url.startsWith('https://') && !res.headersSent) {
+          // Fallback to plain HTTP if HTTPS fails
+          if (url.startsWith('https://') && !res.headersSent && !hasResponded) {
             const fallbackUrl = url.replace(/^https:\/\//i, 'http://');
             console.log(`[PROXY FALLBACK] Retrying with plain HTTP fallback: ${fallbackUrl}`);
-            pipeStream(fallbackUrl, depth);
+            pipeStream(fallbackUrl, depth + 1);
             return;
           }
 
@@ -120,9 +161,12 @@ async function startServer() {
           }
         });
 
-        proxyReq.setTimeout(10000, () => {
+        // 15-second initial connection timeout
+        proxyReq.setTimeout(15000, () => {
           console.log(`[PROXY TIMEOUT] Connection stalled for ${url}`);
-          proxyReq.destroy();
+          if (!hasResponded) {
+            proxyReq.destroy();
+          }
         });
 
         proxyReq.end();

@@ -10,31 +10,43 @@ export const CURATED_STATIONS: RadioStation[] = [
   {
     id: 'ro_kissfm',
     name: 'Kiss FM Romania',
-    url: 'https://live.kissfm.ro/kissfm.mp3',
+    url: 'https://live.kissfm.ro/kissfm.aacp',
     country: 'Romania',
     language: 'Română',
     tags: ['Pop', 'Dance', 'Top 40', 'Hits'],
     bitrate: 128,
-    format: 'MP3',
+    format: 'AAC',
     votes: 4200,
     homepage: 'https://www.kissfm.ro'
   },
   {
     id: 'ro_rockfm',
     name: 'Rock FM Romania',
-    url: 'https://live.rockfm.ro/rockfm.mp3',
+    url: 'https://live.rockfm.ro/rockfm.aacp',
     country: 'Romania',
     language: 'Română',
     tags: ['Rock', 'Classic Rock', 'Hard Rock'],
     bitrate: 128,
-    format: 'MP3',
+    format: 'AAC',
     votes: 3100,
     homepage: 'https://www.rockfm.ro'
   },
   {
+    id: 'ro_magicfm',
+    name: 'Magic FM Romania',
+    url: 'https://live.magicfm.ro/magicfm.aacp',
+    country: 'Romania',
+    language: 'Română',
+    tags: ['Soft Rock', 'Pop', 'Oldies', 'Classic Hits'],
+    bitrate: 128,
+    format: 'AAC',
+    votes: 2900,
+    homepage: 'https://www.magicfm.ro'
+  },
+  {
     id: 'ro_radiozu',
     name: 'Radio ZU Romania',
-    url: 'http://live.radiozu.ro:8020/radiozu',
+    url: 'http://89.238.227.6:8020/radiozu',
     country: 'Romania',
     language: 'Română',
     tags: ['Pop', 'Hits', 'Talk', 'Entertainment'],
@@ -42,6 +54,18 @@ export const CURATED_STATIONS: RadioStation[] = [
     format: 'MP3',
     votes: 5600,
     homepage: 'https://radiozu.ro'
+  },
+  {
+    id: 'ro_profm',
+    name: 'Pro FM Romania',
+    url: 'https://edge126.rdsnet.ro/profm/profm.mp3',
+    country: 'Romania',
+    language: 'Română',
+    tags: ['Pop', 'Hits', 'Top 40', 'Dance'],
+    bitrate: 128,
+    format: 'MP3',
+    votes: 4100,
+    homepage: 'https://www.profm.ro'
   },
   {
     id: 'ro_digifm',
@@ -58,7 +82,7 @@ export const CURATED_STATIONS: RadioStation[] = [
   {
     id: 'ro_guerrilla',
     name: 'Radio Guerrilla',
-    url: 'https://live.guerrillaradio.ro/guerrilla.aac',
+    url: 'http://live.guerrillaradio.ro:8000/guerrilla.aac',
     country: 'Romania',
     language: 'Română',
     tags: ['Alternative', 'Rock', 'Indie', 'Independent'],
@@ -68,9 +92,21 @@ export const CURATED_STATIONS: RadioStation[] = [
     homepage: 'https://www.guerrillaradio.ro'
   },
   {
+    id: 'ro_rra',
+    name: 'Radio Romania Actualitati',
+    url: 'http://stream2.srr.ro:8000/rra.mp3',
+    country: 'Romania',
+    language: 'Română',
+    tags: ['News', 'Talk', 'Info', 'National'],
+    bitrate: 128,
+    format: 'MP3',
+    votes: 1950,
+    homepage: 'https://www.romania-actualitati.ro'
+  },
+  {
     id: 'ro_cultural',
     name: 'Radio Romania Cultural',
-    url: 'http://stream.radioromania.ro:8012/',
+    url: 'http://stream2.srr.ro:8000/rrc.mp3',
     country: 'Romania',
     language: 'Română',
     tags: ['Culture', 'Classical', 'Jazz', 'Educative'],
